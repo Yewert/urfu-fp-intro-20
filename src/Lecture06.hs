@@ -129,7 +129,22 @@ module Lecture06 where
   Если да, то приведите пример Γ и T и постройте дерево вывода Γ ⊢ x x : T;
   если нет, то докажите это (напишите, почему)
 
-  *Решение*
+
+  От противного
+
+  Γ ⊢ x x : T
+  -----------
+  Γ ⊢ x : T' -> T
+
+  Γ ⊢ x x : T
+  -----------
+  Γ ⊢ x : T'
+
+
+  T === T' === T' -> T === T -> T
+
+  Получаем, что один терм имеет два типа, но он не может по теореме о единственности типов => противоречие
+
 -}
 -- </Задачи для самостоятельного решения>
 
@@ -203,13 +218,6 @@ module Lecture06 where
   [] не так уж просты. Они работают, и в `3:[]` и в `'a':[]`. Однако, если мы закрепим
   за ними тип `[Int]` по первому выражению, то это не будет работать во втором выражении.
 
-  А список сейчас мы можем определить только так:
-
-    ListInt = NilInt | ConsInt x ListInt
-    ListChar = NilChar | ConsChar x ListChar
-    ...
-
-  Что нас, конечно, не устраивает, мы же знаем о принципе DRY.
   Нам нужно уметь использовать один и тот же код для разных типов.
   Кажется, нам нужен полиморфизм. А что вообще такое полиморфизм?
 
@@ -326,7 +334,7 @@ module Lecture06 where
   Убедитесь, что selfApp работает. Приведите терм `selfApp id` в нормальную форму
   и запишите все шаги β-редукции ->β.
 
-  selfApp id = ... ->β ...
+  selfApp id = (λx:∀X.X->X.x [∀X.X->X] x) (id: ∀X.X->X) ->β 
 -}
 -- </Задачи для самостоятельного решения>
 
@@ -578,16 +586,16 @@ module Lecture06 where
 -}
 
 f :: [a] -> Int
-f = error "not implemented"
+f = length
 
 g :: (a -> b)->[a]->[b]
-g = error "not implemented"
+g = map
 
 q :: a -> a -> a
-q x y = error "not implemented"
+q x y = x
 
 p :: (a -> b) -> (b -> c) -> (a -> c)
-p f g = error "not implemented"
+p f g = g . f
 
 {-
   Крестики-нолики Чёрча.
@@ -624,7 +632,10 @@ createRow x y z = \case
   Third -> z
 
 createField :: Row -> Row -> Row -> Field
-createField x y z = error "not implemented"
+createField x y z = \case
+  First -> x
+  Second -> y
+  Third -> z
 
 -- Чтобы было с чего начинать проверять ваши функции
 emptyField :: Field
@@ -633,17 +644,51 @@ emptyField = createField emptyLine emptyLine emptyLine
     emptyLine = createRow Empty Empty Empty
 
 setCellInRow :: Row -> Index -> Value -> Row
-setCellInRow r i v = error "not implemented"
+setCellInRow r j v = \l -> if j == l then v else r l
 
 -- Возвращает новое игровое поле, если клетку можно занять.
 -- Возвращает ошибку, если место занято.
 setCell :: Field -> Index -> Index -> Value -> Either String Field
-setCell field i j v = error "not implemented"
+setCell field i j v = if (field i j) == Empty then Right nextState else Left error
+  where
+    error = "There's already " ++ show (field i j) ++ " at (" ++ show i ++ ", " ++ show j ++ ")"
+    nextState = \k -> if i == k then (setCellInRow (field i) j v) else (field k)
 
 data GameState = InProgress | Draw | XsWon | OsWon deriving (Eq, Show)
 
+
 getGameState :: Field -> GameState
-getGameState field = error "not implemented"
+getGameState field
+  | crossesWon field = XsWon
+  | zeroesWon field = OsWon
+  | hasEmptyCells field = InProgress
+  | otherwise = Draw
+  where
+    possibleIndicies = [First, Second, Third]
+    reversedPossibleIndicies = [Third, Second, First]
+    primaryDiagonal = zip possibleIndicies possibleIndicies
+    secondaryDiagonal = zip possibleIndicies reversedPossibleIndicies
+
+    rowIndicies i = map (\j -> (i, j)) possibleIndicies
+    
+    colIndicies j = map (\i -> (i, j)) possibleIndicies
+
+    getValuesForIndicies field indicies = map (\(i, j) -> field i j) indicies
+
+    wonOn indicies v field  = all (== v) $ getValuesForIndicies field indicies
+
+    wonOnAnyDiagonal v f = wonOn primaryDiagonal v f || wonOn secondaryDiagonal v f
+    wonOnAnyVertical vertical v f  = any id $ map (\i -> all (== v) $ getValuesForIndicies f $ vertical i) possibleIndicies
+    wonOnAnyCol = wonOnAnyVertical colIndicies
+    wonOnAnyRow = wonOnAnyVertical rowIndicies 
+
+    won v field = wonOnAnyDiagonal v field || wonOnAnyRow v field || wonOnAnyCol v field
+
+    crossesWon = won Cross
+    zeroesWon = won Zero
+
+    allIndicies = foldl (++) [] $ map rowIndicies possibleIndicies
+    hasEmptyCells f = any (== Empty) $ getValuesForIndicies f allIndicies
 
 -- </Задачи для самостоятельного решения>
 
