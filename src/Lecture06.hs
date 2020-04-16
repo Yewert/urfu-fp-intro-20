@@ -651,7 +651,7 @@ setCellInRow r j v = \l -> if j == l then v else r l
 setCell :: Field -> Index -> Index -> Value -> Either String Field
 setCell field i j v = if (field i j) == Empty then Right nextState else Left error
   where
-    error = "There's already " ++ show (field i j) ++ " at (" ++ show i ++ ", " ++ show j ++ ")"
+    error = "There is '" ++ show (field i j) ++ "' on " ++ show i ++ " " ++ show j
     nextState = \k -> if i == k then (setCellInRow (field i) j v) else (field k)
 
 data GameState = InProgress | Draw | XsWon | OsWon deriving (Eq, Show)
