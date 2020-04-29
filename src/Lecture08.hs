@@ -41,18 +41,20 @@ import qualified Data.IntMap as Map
 data Stack a = Stack [a] deriving (Eq, Show)
 
 createStack :: Stack a
-createStack = error "not implemented"
+createStack = Stack []
 
 -- Обратите внимание, что все структуры данных неизменяемые (immutable). Значит, если операция
 -- предполагает изменение структуры, то она просто должна возвращать новую уже изменённую версию.
 push :: Stack a -> a -> Stack a
-push stack x = error "not implemented"
+push (Stack xs) x = Stack $ x : xs 
 
 pop :: Stack a -> Maybe (Stack a)
-pop stack = error "not implemented"
+pop (Stack []) = Nothing
+pop (Stack (x:xs)) = Just $ Stack xs
 
 peek :: Stack a -> Maybe a
-peek stack = error "not implemented"
+peek (Stack []) = Nothing
+peek (Stack (x:xs)) = Just x
 
 -- </Задачи для самостоятельного решения>
 
@@ -170,17 +172,20 @@ dequeue' (q:qs) = (q, qs)             -- возвращаем (элемент, �
 data Queue a = Queue [a] [a] deriving (Eq, Show)
 
 createQueue :: Queue a
-createQueue = error "not implemented"
+createQueue = Queue [] []
 
 enqueue :: Queue a -> a -> Queue a
-enqueue queue x = error "not implemented"
+enqueue (Queue ls rs) x = Queue (x:ls) rs
 
 -- если очередь пустая возвращает ошибку
 dequeue :: Queue a -> (a, Queue a)
-dequeue queue = error "not implemented"
+dequeue (Queue [] []) = error "empty"
+dequeue (Queue ls []) = dequeue $ Queue [] $ reverse ls
+dequeue (Queue ls (r:rs)) = (r, Queue ls rs)
 
 isEmpty :: Queue a -> Bool
-isEmpty queue = error "not implemented"
+isEmpty (Queue [] []) = True
+isEmpty _ = False
 
 -- </Задачи для самостоятельного решения>
 
@@ -377,8 +382,66 @@ emptySet = Set.intersection evenSet oddSet
 -}
 
 -- Сортирует массив целых неотрицательных чисел по возрастанию
+
+class IntArray a where
+    fill'::[Int] -> a
+    restore'::a -> [Int]
+
+
+
+incrementIndexList :: Int -> [Int] -> Int -> [Int]
+incrementIndexList i container currentValue = if (length container) == i then container ++ [currentValue + 1] else container ++ [currentValue] 
+
+incrementAtIndexList :: Int -> [Int] -> [Int]
+incrementAtIndexList i a = foldl (incrementIndexList i) [] a 
+
+fillIntList::[Int] -> [Int]
+fillIntList x = foldl (\a v -> incrementAtIndexList v a) bigarray x where
+        bigarray = [0 | i <- [0..(maximum x)]]
+
+tupFirst :: (a, b) -> a
+tupFirst (f, s) = f
+
+addRestoredValue :: ([Int], Int) -> Int -> ([Int], Int)
+addRestoredValue (acc, ind) res = (acc ++ replicate res ind, ind + 1)
+
+restoreIntList :: [Int] -> [Int]
+restoreIntList a = tupFirst $ foldl (addRestoredValue) ([], 0) a
+
+instance IntArray [Int] where
+    fill' = fillIntList
+    restore' = restoreIntList
+
+fillArray :: [Int] -> (Array Int Int)
+fillArray x = foldl (\a v -> a // [(i, if i == v then ((a ! i) + 1) else a ! i) | i <- [min..max]]) bigarray x where
+    bigarray = array (min, max) [(i, 0) | i <- [min .. max]]
+    max = maximum x
+    min = minimum x
+
+restoreArray :: (Array Int Int) -> [Int]
+restoreArray a = foldl (\acc i -> acc ++ replicate (a!i) i) [] (indices a)
+
+instance IntArray (Array Int Int) where
+    fill' = fillArray
+    restore' = restoreArray
+
+
+fillMap :: [Int] -> (Map.IntMap Int)
+fillMap x = Map.fromListWith (+) $ map (\v -> (v, 1)) x
+
+
+restoreMap :: (Map.IntMap Int) -> [Int]
+restoreMap a = foldl (\acc (v, c) -> acc ++ replicate c v) [] $ Map.toList a
+
+instance IntArray (Map.IntMap Int) where
+    fill' = fillMap
+    restore' = restoreMap
+
 countingSort :: forall a. IntArray a => [Int] -> [Int]
-countingSort = error "not implemented"
+countingSort [] = []
+countingSort x = restore' y where
+    y::a
+    y = fill' x
 
 {-
   Tак можно запустить функцию сортировки с использованием конкретной реализацией массива:
@@ -388,6 +451,7 @@ countingSort = error "not implemented"
   [1,1,1,2,2,2,3,3,3]
   *Lecture08> countingSort @(Map.IntMap Int) [2,2,2,3,3,3,1,1,1]
   [1,1,1,2,2,2,3,3,3]
+
 -}
 
 sorted :: [Int]
